@@ -3,69 +3,63 @@ using System;
 using System.Linq;
 public class MultiSourceFileCopy
 {
+
+    private const int BufferSize = 4096;
+    private List<string> sourceOrdering;    
     public void Main(string[] args, string destination)
     {
-        GetData(args, destination);
+        CopyFileAsync(args, destination);
     }
 
-    public async Task GetData(string[] args, string destination)
+    public async Task CopyFileAsync(string[] args, string destination)
     {
         var sourcePath = new string[args.Length];
         {
             CancellationToken ct = new CancellationToken();
-            var options = new ParallelOptions()
+
+            MeasureMedium measureMedium = new MeasureMedium();
+
+            var orderedSources = measureMedium.orderSources(args);
+
+            for (int i = 0; i < orderedSources.Count; )
             {
-                MaxDegreeOfParallelism = 20
-            };
+                //here's the magic. Take the top choice and use that source to copy to the destination
+                using (FileStream sourceStream = new FileStream(orderedSources.ElementAt(i), FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous))
+                using (FileStream destinationStream = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous))
+                {
+                    long fileSize = sourceStream.Length;
+                    byte[] buffer = new byte[BufferSize];
 
-            var paths = new[] { sourcePath };
-            await Parallel.ForEachAsync(paths, options, async (sourcePath, ct) =>
-             {
-                 Parallel.ForEach(sourcePath, x =>
-                 {
-                     //create the file stream to each of the endpoints
-                    FileStream myStream = new FileStream(x, FileMode.Create);
+                    SemaphoreSlim semaphore = new SemaphoreSlim(Environment.ProcessorCount);
+                    Task[] copyTasks = new Task[Environment.ProcessorCount];
 
-                     MeasureMedium measureMedium = new MeasureMedium();
-                     //create an array to hold the speed that each path equates to
-                     long[] speed = new long[paths.Length];
+                    for (int j = 0; j < copyTasks.Length; j++)
+                    {
+                        copyTasks[j] = CopyChunkAsync(sourceStream, destinationStream, buffer, fileSize, semaphore);
+                        sourceOrdering = measureMedium.orderSources(args);
+                    }
 
-                     for (int i = 0; i < paths.Length; i++)
-                     {
-                         speed[i] = measureMedium.measure(myStream);
+                    await Task.WhenAll(copyTasks);
+                }
+            }
+        } 
+    }
 
-                         var totalSpeed = new long();
-                         for (long j = 0; j < speed.Length; j++)
-                         {
-                             j += totalSpeed;
-                         }
-
-                         var percentageOfTotal = speed[i] / totalSpeed;
-
-                         List<string> files = new List<string>();
-                         foreach (var file in FileSystem.GetFiles(sourcePath[i]))
-                         {
-                             files.Add(file);
-                         }
-
-                         //now files has a string list of all files. We have a number that correlates to the fraction of the total speed.
-                         List<string> medium_list = new List<string>();
-
-                         for (int k = 0; k < percentageOfTotal; k++)
-                         {
-                             medium_list.Add(files[k]);
-                         files.Remove(files[k]);
-                         }
-
-                         foreach (var item in medium_list)
-                         {
-                             // copy the files
-                             FileSystem.CopyDirectory(item, destination, UIOption.AllDialogs);
-                         }
-                     }
-                 });
-                 await Task.Yield();
-             });
+    private async Task CopyChunkAsync(FileStream sourceStream, FileStream destinationStream, byte[] buffer, long fileSize, SemaphoreSlim semaphore)
+    {
+        int bytesRead;
+        while ((bytesRead = await sourceStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+        {
+            await semaphore.WaitAsync();
+            try
+            {
+                await destinationStream.WriteAsync(buffer, 0, bytesRead);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         }
     }
 }
+    

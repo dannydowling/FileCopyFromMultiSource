@@ -1,9 +1,27 @@
-﻿using System.IO;
-using System.Net;
+﻿
 using System.Diagnostics;
 
 public class MeasureMedium 
 {
+    public Dictionary<string, long> sources;
+    public long speed;
+    List<string> orderedSources;
+    public List<string> orderSources(string[] args)
+    {
+        if (orderedSources == null)
+        {
+           orderedSources = new List<string>();
+        } 
+        for (int i = 0; i < args.Length; i++)
+        {
+            //create the file stream to each of the endpoints
+            FileStream myStream = new FileStream(sources.Keys.ElementAt(i), FileMode.Create);
+            speed = measure(myStream);
+            orderedSources.Add(sources.Keys.ElementAt(i));
+        }
+        return orderedSources;
+    }
+
     public long measure(Stream myStream)
     {
         Stopwatch stopwatch = new Stopwatch();
@@ -11,17 +29,12 @@ public class MeasureMedium
         stopwatch.Reset();
         stopwatch.Start();
 
-        byte[] buffer = new byte[4096]; // 4 KB buffer
+        byte[] buffer = new byte[64]; // 64 Byte buffer
         int actualReadBytes = myStream.Read(buffer, offset, buffer.Length);
-
-        // Now we have read 'actualReadBytes' bytes 
-        // in 'stopWatch.ElapsedMilliseconds' milliseconds.
-
         stopwatch.Stop();
-        offset += actualReadBytes;
+        //offset += actualReadBytes;
         long speed = (actualReadBytes * 8) / stopwatch.ElapsedMilliseconds; // kbps
-        return speed;
-        // End of the loop
+        return speed;     
     }
 }
  
