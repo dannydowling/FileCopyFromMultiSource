@@ -1,42 +1,19 @@
-﻿  public abstract class Comparator
+﻿public class Comparator
+{
+    public override bool Equals(object objA, object objB)
     {
-        public virtual long Id { get; protected set; }
+        if (objA.GetHashCode() == objB.GetHashCode())
+            return true;
 
-        public override bool Equals(object obj)
-        {
-            if (obj is not Comparator other)
-                return false;
+        if (ReferenceEquals(objA, objB))
+            return true;
 
-            if (ReferenceEquals(this, other))
-                return true;
+        if (objA.GetType() != objB.GetType())
+            return false;
 
-            if (GetType() != other.GetType())
-                return false;
+        if (objA == null || objB == null)
+            return false;
 
-            if (Id == 0 || other.Id == 0)
-                return false;
-
-            return Id == other.Id;
-        }
-
-        public static bool operator ==(Comparator a, Comparator b)
-        {
-            if (a is null && b is null)
-                return true;
-
-            if (a is null || b is null)
-                return false;
-
-            return a.Equals(b);
-        }
-
-        public static bool operator !=(Comparator a, Comparator b)
-        {
-            return !(a == b);
-        }
-
-        public override int GetHashCode()
-        {
-            return (GetType().ToString() + Id).GetHashCode();
-        }
+      
     }
+}

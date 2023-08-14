@@ -1,11 +1,8 @@
-﻿using Microsoft.VisualBasic.FileIO;
-using System;
-using System.Linq;
-public class MultiSourceFileCopy
+﻿public class MultiSourceFileCopy
 {
 
     private const int BufferSize = 4096;
-    private List<string> sourceOrdering;    
+    private List<string> sourceOrdering;
     public void Main(string[] args, string destination)
     {
         CopyFileAsync(args, destination);
@@ -21,7 +18,7 @@ public class MultiSourceFileCopy
 
             var orderedSources = measureMedium.orderSources(args);
 
-            for (int i = 0; i < orderedSources.Count; )
+            for (int i = 0; i < orderedSources.Count;)
             {
                 //here's the magic. Take the top choice and use that source to copy to the destination
                 using (FileStream sourceStream = new FileStream(orderedSources.ElementAt(i), FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous))
@@ -30,10 +27,12 @@ public class MultiSourceFileCopy
                     long fileSize = sourceStream.Length;
                     byte[] buffer = new byte[BufferSize];
 
+
                     SemaphoreSlim semaphore = new SemaphoreSlim(Environment.ProcessorCount);
                     Task[] copyTasks = new Task[Environment.ProcessorCount];
+                    Comparator comparator = new StreamLengthComparator();
 
-                    for (int j = 0; j < copyTasks.Length; j++)
+                    for (int j = 0; comparator.Equals(destinationStream.Length(sourceStream.Length); j++)
                     {
                         copyTasks[j] = CopyChunkAsync(sourceStream, destinationStream, buffer, fileSize, semaphore);
                         sourceOrdering = measureMedium.orderSources(args);
@@ -42,7 +41,12 @@ public class MultiSourceFileCopy
                     await Task.WhenAll(copyTasks);
                 }
             }
-        } 
+        }
+    }
+
+
+    public class StreamLengthComparator : Comparator
+    {
     }
 
     private async Task CopyChunkAsync(FileStream sourceStream, FileStream destinationStream, byte[] buffer, long fileSize, SemaphoreSlim semaphore)
@@ -62,4 +66,3 @@ public class MultiSourceFileCopy
         }
     }
 }
-    
