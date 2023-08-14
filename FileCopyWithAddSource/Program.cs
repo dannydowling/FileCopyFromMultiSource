@@ -32,7 +32,7 @@
                     Task[] copyTasks = new Task[Environment.ProcessorCount];
                     Comparator comparator = new StreamLengthComparator();
 
-                    for (int j = 0; comparator.Equals(destinationStream.Length(sourceStream.Length); j++)
+                    for (int j = 0; comparator.Equals(destinationStream.Length, sourceStream.Length); j++)
                     {
                         copyTasks[j] = CopyChunkAsync(sourceStream, destinationStream, buffer, fileSize, semaphore);
                         sourceOrdering = measureMedium.orderSources(args);
