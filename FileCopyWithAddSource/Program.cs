@@ -1,4 +1,6 @@
 ﻿using Microsoft.VisualBasic.FileIO;
+using System;
+using System.Linq;
 public class MultiSourceFileCopy
 {
     public void Main(string[] args, string destination)

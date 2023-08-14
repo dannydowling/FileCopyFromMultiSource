@@ -11,7 +11,7 @@ public class MeasureMedium
         stopwatch.Reset();
         stopwatch.Start();
 
-        byte[] buffer = new byte[1024]; // 1 KB buffer
+        byte[] buffer = new byte[4096]; // 4 KB buffer
         int actualReadBytes = myStream.Read(buffer, offset, buffer.Length);
 
         // Now we have read 'actualReadBytes' bytes 
@@ -25,8 +25,3 @@ public class MeasureMedium
     }
 }
  
-        
-
-
-
-
