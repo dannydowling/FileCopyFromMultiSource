@@ -1,10 +1,11 @@
 # FileCopyWithAddSource
 
-The way that this implementation is written is a stupid way.
-The problem is that branching has to be context aware of what's already been written by other threads (thread synchronization).
-To solve this, I'd like to test the speed of each of the mediums (hard drive, network etc) in an aggregate of the data that is available at all sources.
-Then I'd like to divide the aggregate by the speed to give the best possible time for transfer and run each data copy synchronously to the destination.
+This tests the connection speed of an array of source locations from which to copy to a destination.
 
-Thank you for looking.
-I feel like the testing and then executing of the system is a lot to program. 
-I have this stupid thing here, just because I wrote the dumb thing.
+The idea is that you might have multiple locations that you back up to and would like to stream from more than one data source.
+I've implemented a queue by way of reading 64 bytes to assess each data source.
+
+It also detects how many processors are in the system and uses them.
+
+I have goals of bringing this into a GUI and getting things working faster than the standard Windows filecopy.
+Good for Steam Games.
