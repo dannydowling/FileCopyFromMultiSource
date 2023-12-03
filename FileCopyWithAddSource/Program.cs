@@ -12,7 +12,6 @@
     {
         var sourcePath = new string[args.Length];
         {
-            CancellationToken ct = new CancellationToken();
 
             MeasureMedium measureMedium = new MeasureMedium();
 
@@ -25,6 +24,7 @@
                 using (FileStream destinationStream = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous))
                 {
                     long fileSize = sourceStream.Length;
+
                     byte[] buffer = new byte[BufferSize];
 
 
