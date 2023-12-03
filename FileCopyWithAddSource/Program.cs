@@ -1,6 +1,4 @@
-﻿using System;
-using System.IO;
-using System.Runtime.CompilerServices;
+﻿using System.Net.NetworkInformation;
 
 public class FileCopier
 {
@@ -33,34 +31,49 @@ public class FileCopier
             // Get the file name from the source file path
             string fileName = Path.GetFileName(sourceFilePath);
 
-            // Calculate the number of packets
-            long fileSize = new FileInfo(sourceFilePath).Length;
-            int packetCount = (int)Math.Ceiling((double)fileSize / PacketSize);
+            // Calculate the number of packets to copy from
+            long fileSizeSource = new FileInfo(sourceFilePath).Length;
+            int packetCountSource = (int)Math.Ceiling((double)fileSizeSource / PacketSize);
+            int i = packetCountSource;
 
-            using (FileStream sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read))
-            {
-                for (int i = 0; i < packetCount; i++)
-                {
-                    // Create a packet-sized buffer
-                    byte[] buffer = new byte[PacketSize];
+            // Use Task.Delay to implement a timeout
+            Task delayTask = Task.Delay(5000);
 
-                    // Read a packet from the source file
-                    int bytesRead = sourceStream.Read(buffer, 0, PacketSize);
+            await Task.WhenAny(
+                      delayTask,
+                      Task.Run(() =>
+                      {
+                          using (FileStream sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read))
+                          {
+                              // we're actually reducing the packets left to copy each time the iteration happens.
 
-                    // Create the destination file path for the current packet
-                    string destinationFilePath = Path.Combine(destinationFolderPath, $"{fileName}_Part{i + 1}.dat");
+                              for (i = packetCountSource; i < packetCountSource; i--)
+                              {
+                                  // Copy the packet to the destination file, cancel if timeout occurs
 
-                    // Write the packet to the destination file
-                    using (FileStream destinationStream = new FileStream(destinationFilePath, FileMode.Create, FileAccess.Write))
-                    {
-                        destinationStream.Write(buffer, 0, bytesRead);
-                    }
+                                  // Create a packet-sized buffer
+                                  byte[] buffer = new byte[PacketSize];
 
-                    Console.WriteLine($"Packet {i + 1} from '{fileName}' copied successfully.");
-                }
-            }
+                                  // Read a packet from the source file
+                                  int bytesRead = sourceStream.Read(buffer, 0, PacketSize);
+
+                                  // Create the destination file path for the current packet
+                                  string destinationFilePath = Path.Combine(destinationFolderPath, $"{fileName}_Part{i + 1}.dat");
+
+                                  // Write the packet to the destination file
+                                  using (FileStream destinationStream = new FileStream(destinationFilePath, FileMode.Create, FileAccess.Write))
+                                  {
+                                      destinationStream.Write(buffer, 0, bytesRead);
+                                  }
+
+                                  Console.WriteLine($"Packet {i + 1} from '{fileName}' copied successfully.");
+
+                              }
+                          }
+                      }
+                      )
+                      );
         });
-
         Console.WriteLine("File copying completed.");
     }
 }
