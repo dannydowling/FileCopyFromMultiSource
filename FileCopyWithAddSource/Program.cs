@@ -1,68 +1,89 @@
-﻿public class MultiSourceFileCopy
+﻿using System;
+using System.IO;
+using System.Runtime.CompilerServices;
+
+public class FileCopier
 {
+    private const int PacketSize = 1024; // Set your desired packet size in bytes
 
-    private const int BufferSize = 4096;
-    private List<string> sourceOrdering;
-    public void Main(string[] args, string destination)
+    public async static void CopyFiles(string[] sourceFilePaths, string destinationFolderPath)
     {
-        CopyFileAsync(args, destination);
-    }
+        MeasureMedium measureMedium = new MeasureMedium();
+        var orderedSources = measureMedium.orderSources(sourceFilePaths);
 
-    public async Task CopyFileAsync(string[] args, string destination)
-    {
-        var sourcePath = new string[args.Length];
+        foreach (var source in orderedSources)
         {
-
-            MeasureMedium measureMedium = new MeasureMedium();
-
-            var orderedSources = measureMedium.orderSources(args);
-
-            for (int i = 0; i < orderedSources.Count;)
+            // Check if the source file exists
+            if (!File.Exists(source))
             {
-                //here's the magic. Take the top choice and use that source to copy to the destination
-                using (FileStream sourceStream = new FileStream(orderedSources.ElementAt(i), FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous))
-                using (FileStream destinationStream = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous))
+                orderedSources.Remove(source);
+                continue;
+            }
+        }
+
+        var options = new ParallelOptions()
+        {
+            MaxDegreeOfParallelism = 20
+        };
+
+
+        // Iterate through each source file
+        await Parallel.ForEachAsync(orderedSources, options, async (sourceFilePath, ct) =>
+        {
+            // Get the file name from the source file path
+            string fileName = Path.GetFileName(sourceFilePath);
+
+            // Calculate the number of packets
+            long fileSize = new FileInfo(sourceFilePath).Length;
+            int packetCount = (int)Math.Ceiling((double)fileSize / PacketSize);
+
+            using (FileStream sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read))
+            {
+                for (int i = 0; i < packetCount; i++)
                 {
-                    long fileSize = sourceStream.Length;
+                    // Create a packet-sized buffer
+                    byte[] buffer = new byte[PacketSize];
 
-                    byte[] buffer = new byte[BufferSize];
+                    // Read a packet from the source file
+                    int bytesRead = sourceStream.Read(buffer, 0, PacketSize);
 
+                    // Create the destination file path for the current packet
+                    string destinationFilePath = Path.Combine(destinationFolderPath, $"{fileName}_Part{i + 1}.dat");
 
-                    SemaphoreSlim semaphore = new SemaphoreSlim(Environment.ProcessorCount);
-                    Task[] copyTasks = new Task[Environment.ProcessorCount];
-                    Comparator comparator = new StreamLengthComparator();
-
-                    for (int j = 0; comparator.Equals(destinationStream.Length, sourceStream.Length); j++)
+                    // Write the packet to the destination file
+                    using (FileStream destinationStream = new FileStream(destinationFilePath, FileMode.Create, FileAccess.Write))
                     {
-                        copyTasks[j] = CopyChunkAsync(sourceStream, destinationStream, buffer, fileSize, semaphore);
-                        sourceOrdering = measureMedium.orderSources(args);
+                        destinationStream.Write(buffer, 0, bytesRead);
                     }
 
-                    await Task.WhenAll(copyTasks);
+                    Console.WriteLine($"Packet {i + 1} from '{fileName}' copied successfully.");
                 }
             }
-        }
+        });
+
+        Console.WriteLine("File copying completed.");
     }
+}
 
-
-    public class StreamLengthComparator : Comparator
+class Program
+{
+    static void Main(string[] args)
     {
-    }
-
-    private async Task CopyChunkAsync(FileStream sourceStream, FileStream destinationStream, byte[] buffer, long fileSize, SemaphoreSlim semaphore)
-    {
-        int bytesRead;
-        while ((bytesRead = await sourceStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+        // Check if at least two arguments are provided
+        if (args.Length < 2)
         {
-            await semaphore.WaitAsync();
-            try
-            {
-                await destinationStream.WriteAsync(buffer, 0, bytesRead);
-            }
-            finally
-            {
-                semaphore.Release();
-            }
+            Console.WriteLine("Usage: FileCopier <destinationFolder> <sourceFile1> [<sourceFile2> ...]");
+            return;
         }
+
+        // The first argument is the destination folder
+        string destinationFolderPath = args[0];
+
+        // The rest of the arguments are source file paths
+        string[] sourceFilePaths = new string[args.Length - 1];
+        Array.Copy(args, 1, sourceFilePaths, 0, args.Length - 1);
+
+        // Call the CopyFiles method with the source file paths and destination folder
+        FileCopier.CopyFiles(sourceFilePaths, destinationFolderPath);
     }
 }
